@@ -2,19 +2,24 @@ const Joi = require("joi");
 const ArticleModel = require("../models/article.model");
 
 // =========================
-// VALIDATION SCHEMAS
+// UPDATED VALIDATION SCHEMAS
 // =========================
 const createArticleSchema = Joi.object({
+  header: Joi.string().min(5).required(),
+  subHeader: Joi.string().min(5).optional(),
   title: Joi.string().min(5).required(),
   content: Joi.string().min(20).required(),
   author: Joi.string().allow("").optional(),
 });
 
 const updateArticleSchema = Joi.object({
+  header: Joi.string().min(5).optional(),
+  subHeader: Joi.string().min(5).optional(),
   title: Joi.string().min(5).optional(),
   content: Joi.string().min(20).optional(),
   author: Joi.string().allow("").optional(),
-}).min(1); // must update at least one field
+}).min(1);
+
 
 
 // =========================
@@ -162,6 +167,37 @@ const deleteArticleById = async (req, res, next) => {
 };
 
 
+
+
+// =========================
+// SEARCH ARTICLES BY KEYWORD
+// =========================
+const searchArticles = async (req, res, next) => {
+  const { q } = req.query;
+
+  if (!q || q.trim() === "") {
+    return res.status(400).json({ message: "Search query 'q' is required" });
+  }
+
+  try {
+    const results = await ArticleModel.find(
+      { $text: { $search: q } },
+      { score: { $meta: "textScore" } }
+    ).sort({ score: { $meta: "textScore" } });
+
+    return res.status(200).json({
+      message: "Search results",
+      query: q,
+      count: results.length,
+      data: results,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
 // =========================
 // EXPORT CONTROLLER
 // =========================
@@ -171,4 +207,5 @@ module.exports = {
   getArticleById,
   updateArticleById,
   deleteArticleById,
+  searchArticles,
 };
